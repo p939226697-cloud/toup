@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>匿名投票 · 下次去哪玩？</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.container {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 32px 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.header h1 {
+  font-size: 22px;
+  color: #1a1a2e;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.header p {
+  font-size: 13px;
+  color: #999;
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.option-card {
+  position: relative;
+  border: 2px solid #eee;
+  border-radius: 16px;
+  padding: 24px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  user-select: none;
+}
+.option-card:active {
+  transform: scale(0.98);
+}
+.option-card.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f0f0ff 0%, #e8eaff 100%);
+}
+.option-card.voted {
+  cursor: default;
+}
+.option-emoji {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+.option-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+.option-desc {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
+}
+.option-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  width: 0;
+  transition: width 0.6s ease;
+  border-radius: 0 0 16px 16px;
+}
+.option-stats {
+  display: none;
+  margin-top: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.option-stats.show {
+  display: flex;
+}
+.option-percent {
+  font-size: 22px;
+  font-weight: 800;
+  color: #667eea;
+}
+.option-count {
+  font-size: 12px;
+  color: #aaa;
+}
+.option-check {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #667eea;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+}
+.option-card.selected .option-check {
+  display: flex;
+}
+.footer {
+  margin-top: 28px;
+  text-align: center;
+}
+.total-votes {
+  font-size: 12px;
+  color: #bbb;
+  margin-bottom: 12px;
+}
+.reset-btn {
+  font-size: 12px;
+  color: #ccc;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 8px;
+}
+.reset-btn:hover {
+  color: #999;
+}
+.anonymous-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #4CAF50;
+  background: #e8f5e9;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-top: 8px;
+}
+.result-section {
+  display: none;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+}
+.result-section.show {
+  display: block;
+}
+.result-title {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.option-card.just-voted {
+  animation: pulse 0.4s ease;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🏖️ 下次去哪玩？</h1>
+    <p>匿名投票，选一个你更想去的</p>
+    <div class="anonymous-tag">🔒 完全匿名，仅本机记录</div>
+  </div>
+
+  <div class="options">
+    <div class="option-card" data-id="phuket" onclick="vote('phuket')">
+      <div class="option-check">✓</div>
+      <div class="option-emoji">🏝️</div>
+      <div class="option-title">泰国 · 普吉岛</div>
+      <div class="option-desc">热带海岛风情、潜水浮潜、泰式按摩、性价比高、免签说走就走</div>
+      <div class="option-bar" id="bar-phuket"></div>
+      <div class="option-stats" id="stats-phuket">
+        <span class="option-percent" id="percent-phuket">0%</span>
+        <span class="option-count" id="count-phuket">0 票</span>
+      </div>
+    </div>
+
+    <div class="option-card" data-id="sanya" onclick="vote('sanya')">
+      <div class="option-check">✓</div>
+      <div class="option-emoji">🌊</div>
+      <div class="option-title">三亚 + 万宁</div>
+      <div class="option-desc">亚龙湾/海棠湾度假、万宁冲浪圣地、日月湾、海南美食、不用出境</div>
+      <div class="option-bar" id="bar-sanya"></div>
+      <div class="option-stats" id="stats-sanya">
+        <span class="option-percent" id="percent-sanya">0%</span>
+        <span class="option-count" id="count-sanya">0 票</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-section" id="resultSection">
+    <div class="result-title">📊 实时投票结果</div>
+  </div>
+
+  <div class="footer">
+    <div class="total-votes" id="totalVotes">共 0 票</div>
+    <button class="reset-btn" onclick="resetVote()">重新投票</button>
+  </div>
+</div>
+
+<script>
+var VOTE_KEY = 'travel_vote_2026';
+var COUNT_KEY = 'travel_vote_counts_2026';
+
+function getVotes() {
+  try {
+    var raw = localStorage.getItem(COUNT_KEY);
+    if (!raw) return { phuket: 0, sanya: 0 };
+    return JSON.parse(raw);
+  } catch(e) {
+    return { phuket: 0, sanya: 0 };
+  }
+}
+
+function saveVotes(votes) {
+  localStorage.setItem(COUNT_KEY, JSON.stringify(votes));
+}
+
+function getMyVote() {
+  return localStorage.getItem(VOTE_KEY);
+}
+
+function setMyVote(id) {
+  localStorage.setItem(VOTE_KEY, id);
+}
+
+function vote(id) {
+  if (getMyVote()) {
+    return;
+  }
+  setMyVote(id);
+  var votes = getVotes();
+  votes[id]++;
+  saveVotes(votes);
+
+  var card = document.querySelector('[data-id="' + id + '"]');
+  card.classList.add('just-voted');
+  setTimeout(function() { card.classList.remove('just-voted'); }, 400);
+
+  renderResults();
+}
+
+function renderResults() {
+  var votes = getVotes();
+  var total = votes.phuket + votes.sanya;
+  var myVote = getMyVote();
+
+  var cards = document.querySelectorAll('.option-card');
+  cards.forEach(function(card) {
+    var id = card.dataset.id;
+    var percent = total > 0 ? Math.round(votes[id] / total * 100) : 0;
+
+    document.getElementById('bar-' + id).style.width = percent + '%';
+    document.getElementById('percent-' + id).textContent = percent + '%';
+    document.getElementById('count-' + id).textContent = votes[id] + ' 票';
+    document.getElementById('stats-' + id).classList.add('show');
+
+    card.classList.add('voted');
+    if (myVote === id) {
+      card.classList.add('selected');
+    }
+  });
+
+  document.getElementById('totalVotes').textContent = '共 ' + total + ' 票';
+  document.getElementById('resultSection').classList.add('show');
+}
+
+function resetVote() {
+  var myVote = getMyVote();
+  if (!myVote) return;
+  var votes = getVotes();
+  if (votes[myVote] > 0) votes[myVote]--;
+  saveVotes(votes);
+  localStorage.removeItem(VOTE_KEY);
+
+  var cards = document.querySelectorAll('.option-card');
+  cards.forEach(function(card) {
+    card.classList.remove('selected', 'voted');
+    document.getElementById('stats-' + card.dataset.id).classList.remove('show');
+    document.getElementById('bar-' + card.dataset.id).style.width = '0%';
+  });
+
+  document.getElementById('resultSection').classList.remove('show');
+  document.getElementById('totalVotes').textContent = '共 ' + (votes.phuket + votes.sanya) + ' 票';
+}
+
+window.onload = function() {
+  if (getMyVote()) {
+    renderResults();
+  }
+};
+</script>
+</body>
+</html>
