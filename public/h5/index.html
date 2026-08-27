@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>幸运大转盘 · 扫码抽奖</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(180deg, #d92b2b 0%, #b91c1c 55%, #8f1414 100%);
+    min-height: 100vh; color: #fff; overflow-x: hidden;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #app { width: 100%; max-width: 480px; padding: 18px 16px 40px; flex: 1; display: flex; flex-direction: column; align-items: center; }
+
+  /* 头部 */
+  .header { text-align: center; width: 100%; }
+  .header img.head-img { width: 100%; border-radius: 12px; display: block; margin-bottom: 10px; }
+  .header h1 { font-size: 26px; letter-spacing: 2px; text-shadow: 0 2px 6px rgba(0,0,0,.35); margin: 6px 0; }
+  .header .desc { font-size: 13px; opacity: .92; line-height: 1.6; padding: 0 10px; }
+  .gold-bar { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 12px 0 4px; }
+  .gold-bar::before, .gold-bar::after { content: ""; height: 1px; flex: 0 0 60px; background: linear-gradient(90deg, transparent, #ffd873); }
+  .gold-bar::after { background: linear-gradient(90deg, #ffd873, transparent); }
+  .gold-bar span { color: #ffd873; font-size: 13px; letter-spacing: 4px; font-weight: 600; }
+
+  /* 规则 */
+  .rules-box { width: 100%; background: rgba(0,0,0,.22); border: 1px solid rgba(255,216,115,.4); border-radius: 10px; margin-top: 14px; padding: 12px 14px; }
+  .rules-box h3 { font-size: 14px; color: #ffd873; margin-bottom: 6px; }
+  .rules-box p { font-size: 12px; line-height: 1.9; opacity: .95; white-space: pre-line; }
+
+  /* 转盘 */
+  .wheel-stage { position: relative; width: 340px; height: 340px; margin: 26px 0 8px; }
+  .wheel-ring {
+    position: absolute; inset: -14px; border-radius: 50%;
+    background: conic-gradient(#ffd873 0 15deg, #f5c34d 15deg 30deg);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45), inset 0 0 0 4px #fff3cf;
+  }
+  .wheel-ring::after {
+    content: ""; position: absolute; inset: 6px; border-radius: 50%;
+    border: 3px dashed rgba(139, 26, 26, .55);
+  }
+  #wheelBox { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: #fff; }
+  #wheel { width: 100%; height: 100%; display: block; border-radius: 50%; }
+  #wheelBox.spinning { transition: transform 5.2s cubic-bezier(.15,.08,.12,1); }
+  .pointer {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%); z-index: 5;
+    width: 0; height: 0; border-left: 16px solid transparent; border-right: 16px solid transparent;
+    border-top: 30px solid #ffd873; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35));
+  }
+  .pointer::after { content: ""; position: absolute; top: -30px; left: -9px; width: 18px; height: 18px; border-radius: 50%; background: #ffd873; border: 3px solid #b91c1c; }
+  #drawBtn {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 6;
+    width: 96px; height: 96px; border-radius: 50%; border: none; cursor: pointer;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0a92e 60%, #d97706);
+    color: #7c1d1d; font-size: 22px; font-weight: 800; letter-spacing: 2px; line-height: 1.25;
+    box-shadow: 0 6px 16px rgba(0,0,0,.4), inset 0 -4px 8px rgba(140,60,0,.35), inset 0 3px 6px rgba(255,255,255,.6);
+    font-family: inherit;
+  }
+  #drawBtn:active { transform: translate(-50%,-50%) scale(.96); }
+  #drawBtn:disabled { filter: grayscale(.4); opacity: .85; }
+
+  .privacy { font-size: 11px; line-height: 1.7; opacity: .75; text-align: center; margin-top: 18px; padding: 0 12px; }
+
+  /* 弹窗 */
+  .mask { position: fixed; inset: 0; background: rgba(0,0,0,.62); display: none; z-index: 50; align-items: center; justify-content: center; padding: 24px; }
+  .mask.show { display: flex; }
+  .dialog {
+    width: 100%; max-width: 340px; background: #fff; border-radius: 16px; padding: 24px 20px;
+    text-align: center; animation: pop .28s ease; position: relative;
+  }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .dialog .icon { font-size: 44px; margin-bottom: 8px; }
+  .dialog h2 { color: #b91c1c; font-size: 19px; margin-bottom: 10px; }
+  .dialog p { color: #555; font-size: 14px; line-height: 1.7; }
+  .dialog .warn { color: #d97706; font-size: 12px; margin-top: 10px; }
+  .btn {
+    display: block; width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 24px;
+    font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn.primary { background: linear-gradient(90deg, #e23b3b, #b91c1c); color: #fff; }
+  .btn.ghost { background: #f3f4f6; color: #6b7280; margin-top: 10px; }
+  .btn-row { display: flex; gap: 12px; }
+  .btn-row .btn { margin-top: 16px; }
+
+  .form-item { text-align: left; margin-top: 14px; }
+  .form-item label { display: block; font-size: 13px; color: #374151; margin-bottom: 6px; font-weight: 600; }
+  .form-item input {
+    width: 100%; padding: 12px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+    font-size: 16px; outline: none; font-family: inherit; background: #fafafa;
+  }
+  .form-item input:focus { border-color: #e23b3b; background: #fff; }
+  .form-tips { text-align: left; margin-top: 12px; font-size: 12px; color: #92400e; background: #fef3c7; border-radius: 8px; padding: 8px 10px; line-height: 1.7; }
+  .err { color: #dc2626; font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+  .result-amount { font-size: 46px; font-weight: 900; color: #e23b3b; margin: 8px 0; }
+  .result-amount small { font-size: 20px; }
+  .sub-note { color: #9ca3af; font-size: 12px; margin-top: 12px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%);
+    background: rgba(0,0,0,.8); color: #fff; padding: 10px 18px; border-radius: 20px;
+    font-size: 14px; z-index: 99; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 86%;
+  }
+  #toast.show { opacity: 1; }
+
+  .end-screen { text-align: center; padding-top: 120px; }
+  .end-screen .icon { font-size: 60px; }
+  .end-screen h2 { font-size: 22px; margin: 16px 0 8px; }
+  .end-screen p { opacity: .8; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header" id="headerBox">
+    <h1 id="actTitle">幸运大转盘</h1>
+    <p class="desc" id="actDesc"></p>
+    <div class="gold-bar"><span>好运转起来</span></div>
+  </div>
+
+  <div class="wheel-stage" id="wheelStage" style="display:none">
+    <div class="wheel-ring"></div>
+    <div class="pointer"></div>
+    <div id="wheelBox"><canvas id="wheel"></canvas></div>
+    <button id="drawBtn">点击<br>抽奖</button>
+  </div>
+
+  <div class="rules-box" id="rulesBox" style="display:none">
+    <h3>活动规则</h3>
+    <p id="actRules"></p>
+  </div>
+
+  <p class="privacy" id="privacyNote">
+    隐私提示：参与本次活动即表示同意活动方为抽奖资格核验与奖品发放目的，收集并保存你的微信昵称与手机号信息。活动结束后数据仅用于核销与对账，不会用于其他用途。
+  </p>
+</div>
+
+<!-- 步骤1：昵称授权 -->
+<div class="mask" id="authModal">
+  <div class="dialog">
+    <div class="icon">🔑</div>
+    <h2>申请获取你的微信昵称</h2>
+    <p>本活动需要获取你的<strong>微信昵称</strong>（仅公开昵称，不获取头像、位置等其他信息），用于抽奖记录。</p>
+    <div class="btn-row">
+      <button class="btn ghost" id="authDeny">拒绝</button>
+      <button class="btn primary" id="authAllow">允许</button>
+    </div>
+  </div>
+</div>
+
+<!-- 步骤2：手机号确认 -->
+<div class="mask" id="phoneModal">
+  <div class="dialog">
+    <div class="icon">📱</div>
+    <h2>确认参与信息</h2>
+    <div class="form-item">
+      <label>微信昵称（已授权获取，请确认）</label>
+      <input id="nickInput" type="text" maxlength="30" placeholder="你的微信昵称">
+    </div>
+    <div class="form-item">
+      <label>手机号码</label>
+      <input id="phoneInput" type="tel" maxlength="11" placeholder="请输入11位手机号" inputmode="numeric">
+    </div>
+    <div class="err" id="phoneErr"></div>
+    <div class="form-tips">
+      · 本手机号用于领奖核销，请确保填写正确<br>
+      · 一个手机号仅可参与 1 次抽奖，不可重复参与
+    </div>
+    <button class="btn primary" id="confirmJoin">确认进入抽奖</button>
+  </div>
+</div>
+
+<!-- 中奖结果 -->
+<div class="mask" id="resultModal">
+  <div class="dialog">
+    <div class="icon" id="resIcon">🎉</div>
+    <div id="resBody">
+      <h2 id="resTitle">恭喜中奖</h2>
+      <div class="result-amount" id="resAmount"></div>
+      <p id="resDesc"></p>
+    </div>
+    <p class="sub-note">中奖奖品请凭本手机号联系工作人员核销领取</p>
+    <button class="btn primary" id="resClose">知道了</button>
+  </div>
+</div>
+
+<!-- 提示弹窗 -->
+<div class="mask" id="alertModal">
+  <div class="dialog">
+    <div class="icon">⚠️</div>
+    <h2 id="alertTitle">提示</h2>
+    <p id="alertText"></p>
+    <button class="btn primary" id="alertOk">确定</button>
+  </div>
+</div>
+
+<div id="endScreen" class="end-screen" style="display:none">
+  <div class="icon">⏰</div>
+  <h2 id="endTitle">活动已结束</h2>
+  <p>感谢关注，敬请期待下次活动</p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var activityId = qs.get('a');
+  var activity = null, prizes = [], participantId = null, spinning = false, drew = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2400);
+  }
+  function alertBox(title, text) {
+    $('alertTitle').textContent = title || '提示';
+    $('alertText').textContent = text || '';
+    $('alertModal').classList.add('show');
+  }
+  $('alertOk').onclick = function () { $('alertModal').classList.remove('show'); };
+
+  function api(path, opts) {
+    return fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}))
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, data: j }; }); });
+  }
+
+  /* ---------- 页面初始化 ---------- */
+  function init() {
+    if (!activityId) { alertBox('参数错误', '缺少活动参数，请通过活动二维码访问'); return; }
+    api('/api/h5/activity/' + activityId).then(function (res) {
+      if (!res.ok) { alertBox('提示', res.data.error || '活动不存在'); return; }
+      activity = res.data;
+      prizes = activity.prizes || [];
+      if (activity.status === 'stopped') { showEnd('活动已结束', '感谢关注，敬请期待下次活动'); return; }
+      if (activity.status !== 'published') { showEnd('活动未开始', '活动尚未发布，请稍后再来'); return; }
+      renderActivity();
+      // 已有参与记录（会话内刷新）：直接恢复
+      var pid = sessionStorage.getItem('lp_' + activityId);
+      if (pid) {
+        api('/api/h5/result/' + pid).then(function (r) {
+          if (r.ok && r.data.drew) { participantId = +pid; enterWheel(true); }
+          else { $('authModal').classList.add('show'); }
+        });
+      } else {
+        $('authModal').classList.add('show');
+      }
+    });
+  }
+  function showEnd(title, text) {
+    $('endTitle').textContent = title;
+    $('endScreen').querySelector('p').textContent = text;
+    $('endScreen').style.display = 'block';
+    $('headerBox').style.visibility = 'hidden';
+    $('privacyNote').style.display = 'none';
+  }
+  function renderActivity() {
+    document.title = activity.title;
+    $('actTitle').textContent = activity.title;
+    $('actDesc').textContent = activity.description || '';
+    $('actRules').textContent = activity.rules || '';
+    if (activity.rules) $('rulesBox').style.display = 'block';
+    var imgs = activity.images || {};
+    if (imgs.header) {
+      var img = document.createElement('img');
+      img.className = 'head-img'; img.src = imgs.header;
+      $('headerBox').insertBefore(img, $('headerBox').firstChild);
+    }
+    drawWheel(imgs);
+    $('wheelStage').style.display = 'block';
+    if (imgs.popupNote) $('privacyNote').insertAdjacentHTML('afterend', '');
+  }
+
+  /* ---------- 步骤1：昵称授权 ---------- */
+  $('authDeny').onclick = function () {
+    toast('必须授权昵称才可参与活动');
+  };
+  $('authAllow').onclick = function () {
+    $('authModal').classList.remove('show');
+    var saved = localStorage.getItem('lottery_nickname');
+    $('nickInput').value = saved || '';
+    $('phoneModal').classList.add('show');
+    if (saved) $('phoneInput').focus();
+  };
+
+  /* ---------- 步骤2：手机号确认 ---------- */
+  $('confirmJoin').onclick = function () {
+    var nick = $('nickInput').value.trim();
+    var phone = $('phoneInput').value.trim();
+    var err = $('phoneErr');
+    err.textContent = '';
+    if (!nick) { err.textContent = '请先确认微信昵称'; return; }
+    if (!/^1[3-9]\d{9}$/.test(phone)) { err.textContent = '请输入正确的 11 位大陆手机号'; return; }
+    api('/api/h5/join', { method: 'POST', body: JSON.stringify({ activityId: +activityId, nickname: nick, phone: phone }) })
+      .then(function (res) {
+        if (res.ok) {
+          localStorage.setItem('lottery_nickname', nick);
+          participantId = res.data.participantId;
+          sessionStorage.setItem('lp_' + activityId, participantId);
+          enterWheel(false);
+        } else if (res.status === 409) {
+          alertBox('不可重复参与', '该手机号已参与本次抽奖，不可重复参与');
+        } else {
+          err.textContent = res.data.error || '提交失败，请重试';
+        }
+      });
+  };
+
+  function enterWheel(hideAuth) {
+    $('phoneModal').classList.remove('show');
+    $('wheelStage').style.display = 'block';
+    if (hideAuth) checkDrawn();
+  }
+  function checkDrawn() {
+    api('/api/h5/result/' + participantId).then(function (r) {
+      if (r.ok && r.data.drew) { drew = true; showResult(r.data.prizeIndex, r.data.prizeName, r.data.amount, r.data.isWinner, true); }
+    });
+  }
+
+  /* ---------- 转盘绘制 ---------- */
+  var CANVAS_SIZE = 340;
+  function drawWheel(imgs) {
+    var canvas = $('wheel');
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = CANVAS_SIZE * dpr; canvas.height = CANVAS_SIZE * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    var cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2, R = CANVAS_SIZE / 2;
+    var seg = Math.PI * 2 / prizes.length;
+    var colors = ['#fffdf5', '#ffedcc'];
+
+    // 自定义转盘底图
+    if (imgs.wheel) {
+      var img = new Image();
+      img.onload = function () { ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE); };
+      img.src = imgs.wheel;
+      return;
+    }
+    ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    for (var i = 0; i < prizes.length; i++) {
+      var start = -Math.PI / 2 + i * seg;
+      var end = start + seg;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, start, end);
+      ctx.closePath();
+      ctx.fillStyle = prizes[i].isBlank ? '#eceff3' : colors[i % 2];
+      ctx.fill();
+      ctx.strokeStyle = '#e8b64c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // 文字
+      var mid = start + seg / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(mid);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = prizes[i].isBlank ? '#8a8f99' : '#c0392b';
+      ctx.font = 'bold 17px "PingFang SC", sans-serif';
+      var name = prizes[i].name.replace('现金', '').replace('元', '元');
+      ctx.fillText(name, R - 18, 0);
+      ctx.restore();
+    }
+    // 中心装饰
+    ctx.beginPath();
+    ctx.arc(cx, cy, 58, 0, Math.PI * 2);
+    ctx.fillStyle = '#b91c1c';
+    ctx.fill();
+  }
+
+  /* ---------- 抽奖 ---------- */
+  var rotation = 0;
+  $('drawBtn').onclick = function () {
+    if (spinning || drew || !participantId) return;
+    spinning = true;
+    $('drawBtn').disabled = true;
+    api('/api/h5/draw', { method: 'POST', body: JSON.stringify({ participantId: participantId }) })
+      .then(function (res) {
+        if (!res.ok) { spinning = false; $('drawBtn').disabled = false; alertBox('提示', res.data.error || '抽奖失败，请重试'); return; }
+        var d = res.data;
+        drew = true;
+        if (d.already) { showResult(d.prizeIndex, d.prizeName, d.amount, d.isWinner, true); spinning = false; return; }
+        spinTo(d.prizeIndex, function () { showResult(d.prizeIndex, d.prizeName, d.amount, d.isWinner, false); });
+      })
+      .catch(function () { spinning = false; $('drawBtn').disabled = false; alertBox('提示', '网络异常，请重试'); });
+  };
+
+  function spinTo(index, done) {
+    var seg = 360 / prizes.length;
+    var targetMod = ((-index * seg - seg / 2) % 360 + 360) % 360;
+    var currentMod = ((rotation % 360) + 360) % 360;
+    var delta = targetMod - currentMod;
+    if (delta < 0) delta += 360;
+    rotation += 360 * 6 + delta;
+    var box = $('wheelBox');
+    box.classList.add('spinning');
+    box.style.transform = 'rotate(' + rotation + 'deg)';
+    setTimeout(function () {
+      box.classList.remove('spinning');
+      spinning = false;
+      done && done();
+    }, 5300);
+  }
+
+  function showResult(index, name, amount, isWinner, instant) {
+    $('resIcon').textContent = isWinner ? '🎉' : '🙏';
+    $('resTitle').textContent = isWinner ? '恭喜中奖' : '很遗憾';
+    $('resAmount').innerHTML = isWinner
+      ? ('<small>¥</small>' + (amount % 1 === 0 ? amount : amount.toFixed(2)))
+      : '';
+    $('resDesc').textContent = isWinner
+      ? ('获得 ' + name + '，已存入你的抽奖记录')
+      : ('谢谢惠顾，感谢参与本次活动');
+    $('resultModal').classList.add('show');
+  }
+  $('resClose').onclick = function () { $('resultModal').classList.remove('show'); };
+
+  init();
+})();
+</script>
+</body>
+</html>

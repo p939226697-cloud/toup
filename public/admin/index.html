@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>转盘抽奖 · 管理后台</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- 登录页 -->
+<div id="loginView" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">🎡</div>
+    <h1>转盘抽奖管理后台</h1>
+    <p class="login-sub">管理员账号登录</p>
+    <div class="login-form">
+      <input type="text" id="loginUser" placeholder="管理员账号" autocomplete="username">
+      <input type="password" id="loginPass" placeholder="密码" autocomplete="current-password">
+      <div class="login-err" id="loginErr"></div>
+      <button class="btn primary block" id="loginBtn">登 录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="mainView" class="layout" style="display:none">
+  <aside class="sidebar">
+    <div class="brand">🎡 抽奖后台</div>
+    <nav>
+      <a class="nav-item active" data-view="activities">🎯 活动管理</a>
+      <a class="nav-item" data-view="records">📋 数据明细</a>
+      <a class="nav-item" data-view="stats">📊 统计看板</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="who" id="whoAmI"></div>
+      <a href="javascript:;" class="link" id="changePwdLink">修改密码</a>
+      <button class="btn ghost sm block" id="logoutBtn">退出登录</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- 活动列表 -->
+    <section id="view-activities" class="view">
+      <div class="view-head">
+        <h2>活动管理</h2>
+        <button class="btn primary" id="newActivityBtn">＋ 新建活动</button>
+      </div>
+      <table class="table" id="actTable">
+        <thead>
+          <tr>
+            <th>ID</th><th>活动标题</th><th>状态</th><th>扫码人数</th><th>抽奖人数</th>
+            <th>中奖人数</th><th>发放金额</th><th>创建时间</th><th style="width:290px">操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- 活动编辑器 -->
+    <section id="view-editor" class="view" style="display:none">
+      <div class="view-head">
+        <h2 id="editorTitle">编辑活动</h2>
+        <button class="btn ghost" id="backBtn">← 返回列表</button>
+      </div>
+      <div class="editor-grid">
+        <div class="card">
+          <h3 class="card-title">页面文案</h3>
+          <div class="form-item">
+            <label>活动标题</label>
+            <input type="text" id="fTitle" maxlength="40" placeholder="例如：幸运大转盘 · 扫码抽奖">
+          </div>
+          <div class="form-item">
+            <label>活动说明（展示在页面标题下方）</label>
+            <textarea id="fDesc" rows="2" placeholder="扫码参与幸运大转盘抽奖，现金好礼等你拿！"></textarea>
+          </div>
+          <div class="form-item">
+            <label>活动规则</label>
+            <textarea id="fRules" rows="5" placeholder="1. 微信扫码进入活动页；&#10;2. 授权昵称并确认手机号；&#10;3. 每个手机号限参与1次；"></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">页面图片素材</h3>
+          <p class="card-tip">未上传时使用系统默认样式；上传后立即保存到素材库</p>
+          <div class="upload-grid">
+            <div class="upload-item" data-key="header"><span>活动头图</span></div>
+            <div class="upload-item" data-key="wheel"><span>转盘底图</span></div>
+            <div class="upload-item" data-key="button"><span>抽奖按钮图</span></div>
+            <div class="upload-item" data-key="popup"><span>弹窗背景图</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">奖品与中奖概率</h3>
+          <p class="card-tip">概率以「分子 / 分母」配置（如 1/100 = 每人百分之一概率）；中奖判定在服务端随机执行，与前端无关。至少保留一个「谢谢惠顾」奖项。</p>
+          <table class="table prizes-table">
+            <thead>
+              <tr><th>奖品名称</th><th>金额(元)</th><th>概率分子</th><th>概率分母</th><th>谢谢惠顾</th><th></th></tr>
+            </thead>
+            <tbody id="prizeBody"></tbody>
+          </table>
+          <button class="btn ghost sm" id="addPrizeBtn">＋ 添加奖项</button>
+        </div>
+      </div>
+      <div class="editor-actions">
+        <button class="btn ghost" id="saveDraftBtn">保存草稿</button>
+        <button class="btn primary" id="publishBtn">🚀 发布活动</button>
+      </div>
+      <p class="draft-tip">提示：所有修改须点击「发布活动」才会对用户生效，保存草稿不影响线上页面。</p>
+    </section>
+
+    <!-- 数据明细 -->
+    <section id="view-records" class="view" style="display:none">
+      <div class="view-head">
+        <h2>数据明细</h2>
+        <button class="btn primary" id="exportRecordsBtn">⬇ 导出Excel</button>
+      </div>
+      <div class="filter-bar">
+        <select id="rActivity"></select>
+        <input type="date" id="rFrom"> <span class="dash">至</span> <input type="date" id="rTo">
+        <input type="text" id="rPhone" placeholder="手机号" style="width:130px">
+        <select id="rDrawn"><option value="">是否完成抽奖</option><option value="yes">已抽奖</option><option value="no">未抽奖</option></select>
+        <select id="rWinner"><option value="">是否中奖</option><option value="yes">已中奖</option><option value="no">未中奖</option></select>
+        <button class="btn primary sm" id="rSearch">查询</button>
+      </div>
+      <table class="table" id="recTable">
+        <thead>
+          <tr>
+            <th>扫码时间</th><th>微信昵称</th><th>手机号</th><th>是否完成抽奖</th>
+            <th>抽奖结果</th><th>是否重复参与</th><th>访问来源</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="pager">
+        <span id="recTotal"></span>
+        <button class="btn ghost sm" id="recPrev">上一页</button>
+        <span id="recPage"></span>
+        <button class="btn ghost sm" id="recNext">下一页</button>
+      </div>
+    </section>
+
+    <!-- 统计看板 -->
+    <section id="view-stats" class="view" style="display:none">
+      <div class="view-head">
+        <h2>汇总统计看板</h2>
+        <button class="btn primary" id="exportStatsBtn">⬇ 导出Excel</button>
+      </div>
+      <div class="filter-bar">
+        <select id="sActivity"></select>
+        <input type="date" id="sFrom"> <span class="dash">至</span> <input type="date" id="sTo">
+        <button class="btn primary sm" id="sSearch">查询</button>
+      </div>
+      <div class="stat-cards">
+        <div class="stat-card"><div class="num" id="stScans">0</div><div class="lbl">累计扫码人数</div></div>
+        <div class="stat-card"><div class="num" id="stDraws">0</div><div class="lbl">累计完成抽奖</div></div>
+        <div class="stat-card"><div class="num" id="stWinners">0</div><div class="lbl">累计中奖人数</div></div>
+        <div class="stat-card money"><div class="num" id="stAmount">¥0</div><div class="lbl">累计发放奖金</div></div>
+        <div class="stat-card warn"><div class="num" id="stDup">0</div><div class="lbl">重复提交尝试</div></div>
+      </div>
+      <div class="card">
+        <h3 class="card-title">每日统计</h3>
+        <table class="table" id="dailyTable">
+          <thead><tr><th>日期</th><th>扫码人数</th><th>完成抽奖</th><th>中奖人数</th><th>中奖总金额(元)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 class="card-title">各档位奖品中出情况</h3>
+        <table class="table" id="tierTable">
+          <thead><tr><th>奖品名称</th><th>中出份数</th><th>合计金额(元)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 二维码弹窗 -->
+<div class="modal-mask" id="qrModal">
+  <div class="modal">
+    <h3>活动二维码</h3>
+    <p class="modal-sub">扫码进入用户端抽奖页面（微信扫码直接打开）</p>
+    <div class="qr-box"><img id="qrImg" alt="活动二维码"></div>
+    <div class="link-row"><input id="qrLink" readonly><button class="btn primary sm" id="copyLinkBtn">复制链接</button></div>
+    <div class="modal-actions">
+      <a class="btn primary" id="downloadQrBtn" download>⬇ 下载二维码图片（600px，用于印刷）</a>
+      <button class="btn ghost" id="qrClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div class="modal-mask" id="pwdModal">
+  <div class="modal small">
+    <h3>修改密码</h3>
+    <div class="form-item"><label>原密码</label><input type="password" id="oldPwd"></div>
+    <div class="form-item"><label>新密码（至少6位）</label><input type="password" id="newPwd"></div>
+    <div class="err" id="pwdErr"></div>
+    <div class="modal-actions">
+      <button class="btn primary" id="pwdSubmit">确认修改</button>
+      <button class="btn ghost" id="pwdClose">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="admin.js"></script>
+</body>
+</html>
